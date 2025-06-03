@@ -1,75 +1,161 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { DATABASE_ID, databases, HABITS_COLLECTION_ID } from "@/lib/appwrite";
+import { useAuth } from "@/lib/auth-context";
+import { Habit } from "@/lib/database-type";
+import { useLoader } from "@/lib/loader-context";
+import { styles } from "@/styles";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
+import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { Query } from "react-native-appwrite";
+import { Button, Text, useTheme } from "react-native-paper";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+const Home = () => {
+  const { user, signOut } = useAuth();
 
-export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const [habits, setHabits] = useState<Habit[]>([]);
+
+  const { setIsLoading, isLoading } = useLoader();
+
+  const handleSignOut = async () => {
+    setIsLoading(true);
+    try {
+      await signOut();
+    } catch (error) {
+      console.error("Error signing out:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getHabits = async () => {
+    if (!user?.$id) {
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const habits = await databases.listDocuments(
+        DATABASE_ID,
+        HABITS_COLLECTION_ID,
+        [Query.equal("user_id", user?.$id), Query.orderDesc("created_at")]
+      );
+
+      setHabits(habits.documents as Habit[]);
+    } catch (error) {
+      console.error("Error fetching habits:", error);
+    }
+
+    setIsLoading(false);
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      if (user) {
+        getHabits();
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user])
   );
-}
 
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  const theme = useTheme();
+
+  return (
+    <SafeAreaView style={homeStyles.safeArea}>
+      <View style={{ paddingHorizontal: 20, ...styles.rowBetween }}>
+        <Text
+          variant="headlineSmall"
+          style={{
+            fontWeight: "bold",
+          }}
+        >
+          {"Today's"} Habits
+        </Text>
+
+        <Button onPress={handleSignOut} icon={"logout"}>
+          Sign Out
+        </Button>
+      </View>
+
+      {/* <LoaderOverlay /> */}
+      <ScrollView
+        contentContainerStyle={homeStyles.scrollView}
+        refreshControl={
+          <RefreshControl refreshing={isLoading} onRefresh={getHabits} />
+        }
+      >
+        {habits.length === 0 ? (
+          <Text>No Habit created yet.</Text>
+        ) : (
+          habits.map((habit) => (
+            <View
+              key={habit.$id}
+              style={{
+                padding: 20,
+                backgroundColor: "#ffffff",
+                borderRadius: 8,
+                boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+
+                gap: 24,
+              }}
+            >
+              <View>
+                <Text
+                  variant="titleMedium"
+                  ellipsizeMode="tail"
+                  numberOfLines={1}
+                  style={{ fontWeight: 600 }}
+                >
+                  {habit.title}
+                </Text>
+                <Text
+                  variant="bodySmall"
+                  ellipsizeMode="tail"
+                  numberOfLines={2}
+                  style={{ color: "grey" }}
+                >
+                  {habit.description?.length === 0 ? "-" : habit.description}
+                </Text>
+              </View>
+
+              <View style={{ ...styles.rowBetween }}>
+                <View
+                  style={{
+                    backgroundColor: "#FEF3E2",
+
+                    padding: 8,
+                    borderRadius: 8,
+                  }}
+                >
+                  <Text variant="bodySmall" style={{ color: "#FA812F" }}>
+                    {habit.streak_count} Day Streak
+                  </Text>
+                </View>
+
+                <Text style={{ color: theme.colors.secondary }}>
+                  {habit.frequency}
+                </Text>
+              </View>
+            </View>
+          ))
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+const homeStyles = StyleSheet.create({
+  safeArea: {
+    backgroundColor: "#ffffff",
+    flex: 1,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  scrollView: {
+    paddingHorizontal: 20,
+    paddingBottom: 50,
+    marginTop: 20,
+    gap: 20,
   },
 });
+
+export default Home;

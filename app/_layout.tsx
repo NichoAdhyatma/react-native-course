@@ -1,29 +1,39 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
+import AuthGuard from "@/components/AuthGuard";
+import LoaderOverlay from "@/components/LoaderOverlay";
+import { AuthProvider } from "@/lib/auth-context";
+import { LoaderProvider } from "@/lib/loader-context";
+import { lighttheme } from "@/styles/theme";
+import { Stack } from "expo-router";
+import { DefaultTheme, PaperProvider } from "react-native-paper";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { useColorScheme } from '@/hooks/useColorScheme';
+const theme = {
+  ...DefaultTheme,
+  ...lighttheme,
+};
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
-
-  if (!loaded) {
-    // Async font loading only occurs in development.
-    return null;
-  }
-
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <LoaderProvider>
+      <AuthProvider>
+        <PaperProvider theme={theme}>
+          <SafeAreaProvider>
+            <AuthGuard>
+              <Stack>
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="auth"
+                  options={{
+                    title: "Auth Page",
+                    headerShown: false,
+                  }}
+                />
+              </Stack>
+              <LoaderOverlay />
+            </AuthGuard>
+          </SafeAreaProvider>
+        </PaperProvider>
+      </AuthProvider>
+    </LoaderProvider>
   );
 }
