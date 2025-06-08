@@ -10,6 +10,7 @@ export const client = new Client()
 
  export const DATABASE_ID = process.env.EXPO_PUBLIC_DB_ID!;
  export const HABITS_COLLECTION_ID = process.env.EXPO_PUBLIC_HABITS_COLLECTION_ID!;
+ export const HABIT_COMPLETIONS_ID=process.env.EXPO_PUBLIC_HABIT_COMPLETIONS_COLLECTION_ID!;
 
  export interface RealtimeEvent<T> {
   event: string;

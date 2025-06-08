@@ -1,14 +1,13 @@
-import { DATABASE_ID, databases, HABITS_COLLECTION_ID } from "@/lib/appwrite";
+import { useHabit } from "@/hooks/useHabit";
 import { useAuth } from "@/lib/auth-context";
-import { Habit } from "@/lib/database-type";
 import { useLoader } from "@/lib/loader-context";
+import { renderLeftActions, renderRightActions } from "@/lib/swipeable";
 import { styles } from "@/styles";
 import Feather from "@expo/vector-icons/Feather";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import { useFocusEffect } from "expo-router";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
-import { Query } from "react-native-appwrite";
 import { Swipeable } from "react-native-gesture-handler";
 import { Button, Surface, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -16,11 +15,17 @@ import { SafeAreaView } from "react-native-safe-area-context";
 const Home = () => {
   const { user, signOut } = useAuth();
 
-  const [habits, setHabits] = useState<Habit[]>([]);
-
   const { setIsLoading, isLoading } = useLoader();
 
   const swipeableRefs = useRef<{ [key: string]: Swipeable | null }>({});
+
+  const {
+    fetchAllData,
+    habits,
+    handleCompleteHabit,
+    handleDeleteHabit,
+    isHabitCompleted,
+  } = useHabit();
 
   const handleSignOut = async () => {
     setIsLoading(true);
@@ -33,109 +38,19 @@ const Home = () => {
     }
   };
 
-  const getHabits = async () => {
-    if (!user?.$id) {
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const habits = await databases.listDocuments(
-        DATABASE_ID,
-        HABITS_COLLECTION_ID,
-        [Query.equal("user_id", user?.$id), Query.orderDesc("created_at")]
-      );
-
-      setHabits(habits.documents as Habit[]);
-    } catch (error) {
-      console.error("Error fetching habits:", error);
-    }
-
-    setIsLoading(false);
-  };
-
   useFocusEffect(
     useCallback(() => {
-      if (user) {
-        getHabits();
+      if (!user) {
+        return;
       }
+
+      fetchAllData("home");
+
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user])
   );
 
   const theme = useTheme();
-
-  function renderLeftActions(
-    progressAnimatedValue: any,
-    dragAnimatedValue: any,
-    swipeable: Swipeable
-  ): React.ReactNode {
-    return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: "#FF5252",
-          justifyContent: "center",
-          alignItems: "flex-start",
-          paddingLeft: 20,
-          marginTop: 10,
-          paddingRight: 16,
-          marginHorizontal: 10,
-          marginBottom: 10,
-
-          borderRadius: 8,
-        }}
-      >
-        <Feather name="trash" size={24} color="white" />
-      </View>
-    );
-  }
-
-  function renderRightActions(
-    progressAnimatedValue: any,
-    dragAnimatedValue: any,
-    swipeable: Swipeable
-  ): React.ReactNode {
-    return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: "#4CAF50",
-          justifyContent: "center",
-          alignItems: "flex-end",
-          paddingLeft: 20,
-          marginTop: 10,
-          marginHorizontal: 10,
-          paddingRight: 16,
-          marginBottom: 10,
-
-          borderRadius: 8,
-        }}
-      >
-        <Feather name="check-circle" size={24} color="white" />
-      </View>
-    );
-  }
-
-  const handleDeleteHabit = async (habitId: string) => {
-    try {
-      setIsLoading(true);
-      await databases.deleteDocument(
-        DATABASE_ID,
-        HABITS_COLLECTION_ID,
-        habitId
-      );
-
-      setIsLoading(false);
-
-      getHabits();
-    } catch (error) {
-      console.error("Error deleting habit:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   return (
     <SafeAreaView style={homeStyles.safeArea}>
@@ -159,7 +74,10 @@ const Home = () => {
         contentContainerStyle={homeStyles.scrollView}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={isLoading} onRefresh={getHabits} />
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={() => fetchAllData("home")}
+          />
         }
       >
         {habits.length === 0 ? (
@@ -174,17 +92,35 @@ const Home = () => {
               overshootLeft={false}
               overshootRight={false}
               renderLeftActions={renderLeftActions}
-              renderRightActions={renderRightActions}
+              renderRightActions={() =>
+                renderRightActions(isHabitCompleted(habit.$id))
+              }
               onSwipeableOpen={(direction) => {
                 if (direction === "left") {
                   // Handle left swipe action
                   handleDeleteHabit(habit.$id);
+                } else {
+                  handleCompleteHabit(habit.$id);
                 }
 
                 swipeableRefs.current[habit.$id]?.close();
               }}
             >
-              <Surface style={homeStyles.cardContainer} elevation={0}>
+              <Surface style={[homeStyles.cardContainer]} elevation={0}>
+                {isHabitCompleted(habit.$id) && (
+                  <View style={homeStyles.completedBadge}>
+                    <Feather name="check-circle" size={14} color="green" />
+                    <Text
+                      variant="bodySmall"
+                      style={{
+                        color: "green",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Completed
+                    </Text>
+                  </View>
+                )}
                 <View>
                   <Text
                     variant="titleMedium"
@@ -208,14 +144,19 @@ const Home = () => {
                   <View style={homeStyles.streakContainer}>
                     <FontAwesome5 name="fire" size={14} color="#FA812F" />
 
-                    <Text variant="bodySmall" style={{ color: "#FA812F" }}>
+                    <Text
+                      variant="bodySmall"
+                      style={{ color: "#FA812F", fontWeight: 600 }}
+                    >
                       {habit.streak_count} Day Streak
                     </Text>
                   </View>
 
                   <Text
+                    variant="bodySmall"
                     style={{
                       ...homeStyles.frequencyContainer,
+                      fontWeight: 600,
                       color: theme.colors.secondary,
                     }}
                   >
@@ -237,11 +178,12 @@ const homeStyles = StyleSheet.create({
     flex: 1,
   },
   scrollView: {
-    paddingHorizontal: 10,
     paddingBottom: 50,
-    marginTop: 20,
+    marginTop: 10,
+    paddingHorizontal: 10,
   },
   cardContainer: {
+    position: "relative",
     padding: 20,
     backgroundColor: "#ffffff",
     borderRadius: 8,
@@ -251,6 +193,9 @@ const homeStyles = StyleSheet.create({
     marginRight: 10,
     marginLeft: 10,
     gap: 24,
+  },
+  cardCompleted: {
+    opacity: 0.7,
   },
   streakContainer: {
     backgroundColor: "#FEF3E2",
@@ -268,6 +213,19 @@ const homeStyles = StyleSheet.create({
     borderRadius: 50,
     flexDirection: "row",
     alignItems: "center",
+  },
+  completedBadge: {
+    position: "absolute",
+    right: 10,
+    top: 10,
+    borderRadius: 50,
+    backgroundColor: "rgba(0, 255, 0, 0.1)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    justifyContent: "center",
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 6,
   },
 });
 

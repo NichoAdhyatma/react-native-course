@@ -2,9 +2,17 @@ import { useAuth } from "@/lib/auth-context";
 import { useLoader } from "@/lib/loader-context";
 import { styles } from "@/styles";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { KeyboardAvoidingView, NativeSyntheticEvent, Platform, StyleSheet, TextInputSubmitEditingEventData, View } from "react-native";
+import {
+  KeyboardAvoidingView,
+  NativeSyntheticEvent,
+  Platform,
+  TextInput as RNTextInput,
+  StyleSheet,
+  TextInputSubmitEditingEventData,
+  View,
+} from "react-native";
 import { Button, HelperText, Text, TextInput } from "react-native-paper";
 import { z } from "zod";
 
@@ -37,6 +45,8 @@ const AuthScreen = () => {
   const { signIn, signUp } = useAuth();
 
   const { setIsLoading } = useLoader();
+
+  const passwordRef = useRef<RNTextInput>(null);
 
   const handleAuth = async (data: AuthFormData) => {
     setIsLoading(true);
@@ -83,7 +93,7 @@ const AuthScreen = () => {
     event: NativeSyntheticEvent<TextInputSubmitEditingEventData>
   ) => {
     const value = event.nativeEvent.text;
-    
+
     if (value) {
       handleAuth(form.getValues());
     }
@@ -121,6 +131,9 @@ const AuthScreen = () => {
                 onChangeText={field.onChange}
                 onBlur={field.onBlur}
                 error={!!errors.email}
+                onSubmitEditing={() => {
+                  passwordRef.current?.focus();
+                }}
               />
 
               {errors.email && (
@@ -139,6 +152,7 @@ const AuthScreen = () => {
           render={({ field }) => (
             <View>
               <TextInput
+                ref={passwordRef}
                 label="Password"
                 mode="outlined"
                 secureTextEntry

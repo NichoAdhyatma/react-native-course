@@ -34,16 +34,6 @@ const TabsLayout = () => {
       />
 
       <Tabs.Screen
-        name="streaks"
-        options={{
-          title: "Streaks",
-          tabBarIcon: ({ color, size }) => (
-            <SimpleLineIcons name="graph" size={size} color={color} />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
         name="add-habit"
         options={{
           title: "Add Habit",
@@ -54,6 +44,16 @@ const TabsLayout = () => {
               color={color}
             />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="streaks"
+        options={{
+          title: "Streaks",
+          tabBarIcon: ({ color, size }) => (
+            <SimpleLineIcons name="graph" size={size} color={color} />
+          ),
+          headerShown: false,
         }}
       />
     </Tabs>

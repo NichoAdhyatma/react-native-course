@@ -1,16 +1,17 @@
 import { styles } from "@/styles";
-import React from "react";
-import { View } from "react-native";
+import React, { forwardRef } from "react";
+import { TextInput as RNTextField, View } from "react-native";
 import { HelperText, TextInput, type TextInputProps } from "react-native-paper";
 
 interface TextFieldProps extends TextInputProps {
   errorMessage?: string;
 }
 
-const TextField = ({ errorMessage, error, ...props }: TextFieldProps) => {
+const TextField = forwardRef<RNTextField, TextFieldProps>(({ errorMessage, error, ...props }, ref) => {
+
   return (
     <View>
-      <TextInput outlineStyle={styles.input} error={error} {...props} />
+      <TextInput ref={ref} outlineStyle={styles.input} error={error} {...props} />
 
       {error && (
         <HelperText type="error" visible={!!error}>
@@ -19,6 +20,8 @@ const TextField = ({ errorMessage, error, ...props }: TextFieldProps) => {
       )}
     </View>
   );
-};
+});
+
+TextField.displayName = "TextField";
 
 export default TextField;

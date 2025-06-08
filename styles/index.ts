@@ -31,4 +31,13 @@ export const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
+  safeArea: {
+    backgroundColor: "#ffffff",
+    flex: 1,
+  },
+  scrollView: {
+    paddingHorizontal: 20,
+    paddingBottom: 50,
+    marginTop: 20,
+  },
 });

@@ -4,8 +4,8 @@ import { useAuth } from "@/lib/auth-context";
 import { useLoader } from "@/lib/loader-context";
 import { styles } from "@/styles";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "expo-router";
-import React from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { KeyboardAvoidingView, Platform, View } from "react-native";
 import { ID } from "react-native-appwrite";
@@ -42,7 +42,7 @@ const habitSchema = z.object({
 type HabitFormData = z.infer<typeof habitSchema>;
 
 const AddHabitScreen = () => {
-  const { control, handleSubmit, reset } = useForm<HabitFormData>({
+  const { control, handleSubmit, reset, setFocus } = useForm<HabitFormData>({
     resolver: zodResolver(habitSchema),
     defaultValues: {
       title: "",
@@ -56,6 +56,17 @@ const AddHabitScreen = () => {
   const { setIsLoading } = useLoader();
 
   const router = useRouter();
+
+  useFocusEffect(
+    useCallback(() => {
+      // Reset form when the screen is focused
+      reset({
+        title: "",
+        description: "",
+        frequency: "weekly",
+      });
+    }, [reset])
+  );
 
   const onSubmit = async (data: HabitFormData) => {
     setIsLoading(true);
@@ -82,8 +93,6 @@ const AddHabitScreen = () => {
           created_at: new Date().toISOString(),
         }
       );
-
-      reset();
 
       router.back();
     } catch (error) {
@@ -115,6 +124,9 @@ const AddHabitScreen = () => {
             onChangeText={field.onChange}
             error={!!fieldState.error?.message}
             errorMessage={fieldState.error?.message}
+            onSubmitEditing={() => {
+              setFocus("description");
+            }}
             {...field}
           />
         )}
@@ -132,6 +144,9 @@ const AddHabitScreen = () => {
             onChangeText={field.onChange}
             error={!!fieldState.error?.message}
             errorMessage={fieldState.error?.message}
+            onSubmitEditing={() => {
+              handleSubmit(onSubmit)();
+            }}
             {...field}
           />
         )}
